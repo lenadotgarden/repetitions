@@ -2,7 +2,7 @@
 
 Détecte les répétitions dans un texte français (même mot, formes conjuguées ou accordées, mots de la même famille) et propose des synonymes accordés. Sans IA, sans serveur, sans dépendance.
 
-**Interface web** : https://lenadotgarden.github.io/repetitions/ (tout se passe dans ton navigateur, rien n'est envoyé).
+**Interface web** : https://lenadotgarden.github.io/repetitions/ (tout se passe dans ton navigateur, rien n'est envoyé). Les répétitions sont soulignées directement dans le texte : un clic sur un mot ouvre ses synonymes (un clic les applique), les flèches passent d'une occurrence à l'autre, un mot remplacé affiche l'original au survol et peut être remis. « Tout corriger » applique tout d'un coup, « Tout annuler » revient en arrière.
 
 ## En ligne de commande (humains et IA)
 
@@ -31,8 +31,8 @@ Sortie JSON de la détection :
 
 1. Le markdown technique (frontmatter, blocs de code, code inline, URL, cibles de liens, balises HTML) est masqué, le reste est lu.
 2. Chaque mot est ramené à son lemme grâce au dictionnaire de formes (une forme ambiguë prend le lemme le plus fréquent du texte). Les mots vides et les verbes très courants (être, avoir, aller, faire...) sont ignorés.
-3. Deux mots sont une répétition s'ils ont le même lemme, ou des lemmes de la même famille, à moins de N mots l'un de l'autre.
-4. La correction garde la première occurrence et remplace les suivantes par un synonyme, ré-accordé (nombre, genre, temps, personne) avec la table de formes. Un synonyme déjà présent dans le voisinage est écarté.
+3. Deux mots sont une répétition s'ils ont le même lemme, ou des lemmes de la même famille (même racine visible), à moins de N mots l'un de l'autre. Les locutions voulues (*petit à petit*, *étape par étape*, *jour après jour*, *de jour en jour*) sont ignorées.
+4. La correction garde la première occurrence et remplace les suivantes par un synonyme (classé : sources concordantes d'abord, puis mots bien documentés), ré-accordé (nombre, genre, temps, personne) avec la table de formes. Un synonyme déjà présent dans le voisinage est écarté.
 
 ## Limites connues
 

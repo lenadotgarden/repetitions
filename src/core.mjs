@@ -11,6 +11,8 @@ ceci cela ça celui celle ceux celles ici là voici voilà oui non
 ai as ont est sont suis es sommes êtes été étant eu fait faire va vont`.split(/\s+/))
 // Verbes trop courants pour compter comme répétition.
 const STOP_LEMMAS = new Set(['être', 'avoir', 'aller', 'faire', 'pouvoir', 'vouloir', 'devoir', 'falloir'])
+// Locutions de répétition voulue : "petit à petit", "étape par étape", "jour après jour", "de jour en jour"
+const IDIOM_LINK = new Set(['à', 'par', 'après', 'sur', 'contre', 'en'])
 const MIN_LEN = 3
 
 export function loadDict(text) {
@@ -38,7 +40,12 @@ export function loadDict(text) {
     }
     else if (p[0] === 'r') d.fam.set(p[1], new Set([...(d.fam.get(p[1]) ?? []), ...p[2].split(',')]))
   }
-  for (const [k, m] of d.syn) d.syn.set(k, [...m].sort((a, b) => b[1] - a[1]).map(([s]) => s))
+  // tri : sources concordantes d'abord, puis mots bien documentés (proxy de fréquence : un mot courant a beaucoup de synonymes)
+  const size = new Map([...d.syn].map(([k, m]) => [k, m.size]))
+  for (const [k, m] of d.syn) {
+    const degree = (s) => size.get(s + ' ' + k.split(' ')[1]) ?? 0
+    d.syn.set(k, [...m].sort((a, b) => b[1] - a[1] || degree(b[0]) - degree(a[0])).map(([s]) => s))
+  }
   return d
 }
 
@@ -108,7 +115,8 @@ function scan(text, dict, { window = 50 } = {}) {
   for (let i = 0; i < tokens.length; i++) {
     if (tokens[i].skip) continue
     for (let j = i + 1; j < tokens.length && j - i <= window; j++) {
-      if (!tokens[j].skip && related(dict, tokens[i].lemma, tokens[j].lemma)) {
+      const idiom = j === i + 2 && tokens[i].lower === tokens[j].lower && IDIOM_LINK.has(tokens[i + 1].lower)
+      if (!idiom && !tokens[j].skip && related(dict, tokens[i].lemma, tokens[j].lemma)) {
         parent[find(j)] = find(i)
         linked.add(i).add(j)
       }

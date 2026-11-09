@@ -71,7 +71,13 @@ const WIK_CAT = { noun: 'nc', verb: 'v', adj: 'adj', adv: 'adv' }
 const wik = readFileSync(wikPath, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
 const wikSyn = new Map()
 const fam = new Map()
-const link = (a, b) => a && b && a !== b && (fam.get(a) ?? fam.set(a, new Set()).get(a)).add(b) && (fam.get(b) ?? fam.set(b, new Set()).get(b)).add(a)
+// Les liens étymologiques lointains (demain < de + main, matin) ne sont pas des familles : on exige une racine visible.
+const sameStem = (a, b) => {
+  let n = 0
+  while (n < a.length && a[n] === b[n]) n++
+  return n >= 4 || (n === Math.min(a.length, b.length) && n >= 3) || (b.length >= 4 && a.includes(b)) || (a.length >= 4 && b.includes(a))
+}
+const link = (a, b) => a && b && a !== b && sameStem(a, b) && (fam.get(a) ?? fam.set(a, new Set()).get(a)).add(b) && (fam.get(b) ?? fam.set(b, new Set()).get(b)).add(a)
 const children = new Map()
 for (const e of wik) {
   const cat = WIK_CAT[e.p]
@@ -84,7 +90,11 @@ for (const e of wik) {
     if (anyA && b) (children.get(b) ?? children.set(b, new Set()).get(b)).add(anyA)
   }
 }
-for (const kids of children.values()) if (kids.size <= MAX_SIBLINGS) for (const x of kids) for (const y of kids) link(x, y)
+// parents-pivots trop fréquents (déverbal, apocope...) : termes de linguistique, pas des familles
+for (const [parent, kids] of children) {
+  if (kids.size > MAX_SIBLINGS) { for (const k of kids) fam.get(k)?.delete(parent); fam.delete(parent); continue }
+  for (const x of kids) for (const y of kids) link(x, y)
+}
 const famLines = [...fam]
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([l, s]) => 'r ' + l + ' ' + [...s].join(','))

@@ -96,3 +96,20 @@ test('les synonymes cités par plusieurs sources passent en premier', () => {
   // "voie" est féminin, chemin masculin : seul sentier reste, il reste premier
   assert.equal(analyze('Un chemin. Un chemin.', d).repetitions[0].occurrences[1].suggestions[0], 'sentier')
 })
+
+test('ignore les locutions "X à X", "X par X", "de X en X"', () => {
+  const d = loadDict(FIXTURE + '\nf pas nc pas:ms\nf étape nc étape:fs étapes:fp\nf jour nc jour:ms jours:mp')
+  for (const t of ['Petit à petit, pas à pas.', 'Étape par étape.', 'Jour après jour.', 'De jour en jour.']) {
+    assert.deepEqual(lemmas(analyze(t, d)), [], t)
+  }
+})
+
+test('détecte encore un mot répété séparé par une préposition quand ce n\'est pas collé', () => {
+  assert.deepEqual(lemmas(analyze('Le chemin à côté, le chemin.', dict)), ['chemin'])
+})
+
+test('à nombre de sources égal, les synonymes les mieux documentés passent en premier', () => {
+  // rare n'a aucune entrée de synonymes, courant en a : courant doit passer devant
+  const d = loadDict(FIXTURE + '\nf rare nc rare:ms\nf courant nc courant:ms\ns chemin nc rare,courant\ns courant nc chemin,rare,route,sentier')
+  assert.equal(analyze('Un chemin. Un chemin.', d).repetitions[0].occurrences[1].suggestions[0], 'courant')
+})

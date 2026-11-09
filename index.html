@@ -5,95 +5,272 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Répétitions</title>
 <style>
-  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
-  body { max-width: 52rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
-  textarea { width: 100%; min-height: 14rem; box-sizing: border-box; font: inherit; padding: .6rem; }
-  button { font: inherit; padding: .5rem 1rem; margin: .5rem .5rem .5rem 0; cursor: pointer; }
-  .text { white-space: pre-wrap; border: 1px solid #8886; border-radius: .4rem; padding: .6rem; }
-  mark { background: #ffd54f; color: #000; border-radius: .2rem; padding: 0 .1rem; }
-  mark.new { background: #81c784; }
-  li { margin: .3rem 0; }
-  small, .muted { opacity: .7; }
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#fbfbfa, #17181a);
+    --surface: light-dark(#fff, #202225);
+    --text: light-dark(#1c1d1f, #e8e8e6);
+    --muted: light-dark(#5f6368, #a0a3a8);
+    --line: light-dark(#dcdcd8, #36383c);
+    --accent: light-dark(#2457c5, #7ea6ff);
+    --accent-text: light-dark(#fff, #0d1b3a);
+    --ok: light-dark(#1f7a45, #6fd09a);
+    --radius: 10px;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.5; }
+  main { max-width: 46rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; text-wrap: balance; }
+  p { text-wrap: pretty; }
+  .muted { color: var(--muted); }
+  small { font-size: .8125rem; }
+  textarea { width: 100%; min-height: 16rem; padding: .85rem 1rem; font: inherit; line-height: 1.7; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); resize: vertical; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: .45rem .9rem; min-height: 2.5rem; cursor: pointer; transition: background-color .15s, scale .1s; }
+  button:hover:not(:disabled) { background: light-dark(#f0f0ee, #2a2c30); }
+  button:active:not(:disabled) { scale: .96; }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+  .bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .75rem 0; }
+  .bar .grow { flex: 1; }
+  details { margin: .5rem 0; font-size: .875rem; }
+  details input { width: 4.5rem; font: inherit; padding: .2rem .4rem; }
+  [hidden] { display: none !important; }
+
+  /* Zone de relecture */
+  #review { position: relative; }
+  .text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.85; font-size: 1.0625rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.25rem; }
+  mark { --h: 40; color: inherit; border-radius: 3px; padding: .05em .1em; cursor: pointer; position: relative;
+         background: color-mix(in srgb, var(--c) 22%, transparent); border-bottom: 2px solid var(--c); }
+  mark.rep { --c: light-dark(oklch(.62 .17 var(--h)), oklch(.78 .13 var(--h))); }
+  mark.done { --c: var(--ok); border-bottom-style: dashed; }
+  mark.lit { background: color-mix(in srgb, var(--c) 50%, transparent); }
+  mark.open { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* bulle "était : X" au survol d'un mot remplacé */
+  mark.done::after { content: "était : " attr(data-from); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 5; width: max-content; max-width: 16rem;
+    background: var(--text); color: var(--bg); font-size: .8125rem; line-height: 1.3; padding: .3rem .55rem; border-radius: 6px; pointer-events: none; opacity: 0; transition: opacity .12s; }
+  mark.done:hover::after, mark.done:focus-visible::after { opacity: 1; }
+  #review.has-pop mark::after { display: none; }
+
+  /* Fenêtre contextuelle d'un mot */
+  #pop { position: absolute; z-index: 10; width: min(21rem, calc(100% - 1rem)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+         box-shadow: 0 1px 2px #0002, 0 8px 24px #0002; padding: .75rem; font-size: .9375rem; line-height: 1.4; }
+  #pop header { display: flex; align-items: center; gap: .4rem; margin-bottom: .5rem; }
+  #pop header strong { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  #pop .nav { min-height: 2.25rem; min-width: 2.25rem; padding: 0; }
+  #pop .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  #pop .chip { border-radius: 999px; padding: .25rem .8rem; min-height: 2.25rem; border-color: var(--accent); color: var(--accent); }
+  #pop .foot { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .5rem; }
+  #pop .foot button { font-size: .875rem; min-height: 2.25rem; }
+  .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin: .6rem 0 0; }
+  @media (max-width: 600px) {
+    #pop { position: fixed; left: .5rem !important; right: .5rem; bottom: .5rem; top: auto !important; width: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-<h1>Répétitions</h1>
-<p class="muted">Colle ton texte en markdown. Rien n'est envoyé : tout se passe dans ton navigateur.</p>
-<textarea id="in" placeholder="Ton texte..." autofocus></textarea>
-<div>
-  <button id="detect" disabled>Détecter</button>
-  <button id="fix" disabled>Corriger</button>
-  <label>Fenêtre <input id="win" type="number" min="5" max="500" value="50" style="width:4.5rem"> mots</label>
-  <span id="status" class="muted">Chargement du dictionnaire...</span>
-</div>
-<div id="out"></div>
-<p><small>Dictionnaires : Lefff (LGPL-LR), thésaurus Dicollecte (LGPL 2.1+), Wiktionnaire (CC BY-SA 4.0). <a href="https://github.com/lenadotgarden/repetitions">Code et détails</a>.</small></p>
+<main>
+  <h1>Répétitions</h1>
+  <p class="muted">Colle un texte (markdown accepté). Les répétitions sont soulignées dans le texte : clique un mot pour voir ses synonymes. Rien n'est envoyé, tout reste dans ton navigateur.</p>
+
+  <section id="editor">
+    <label for="in" hidden>Ton texte</label>
+    <textarea id="in" placeholder="Colle ton texte ici..." autofocus></textarea>
+    <div class="bar">
+      <button id="go" class="primary" disabled>Chercher les répétitions</button>
+      <span id="status" class="muted" role="status">Chargement du dictionnaire...</span>
+    </div>
+    <details><summary>Réglages</summary>
+      <label>Distance maximale entre deux répétitions : <input id="win" type="number" min="5" max="500" value="50"> mots</label>
+    </details>
+  </section>
+
+  <section id="review" hidden>
+    <div class="bar">
+      <strong id="count" role="status" aria-live="polite"></strong>
+      <span class="grow"></span>
+      <button id="fixall">Tout corriger</button>
+      <button id="undoall" hidden>Tout annuler</button>
+      <button id="copy">Copier</button>
+      <button id="edit">Modifier le texte</button>
+    </div>
+    <div id="text" class="text"></div>
+    <p class="legend muted"><small>Souligné : mot répété, clique pour choisir un synonyme.</small><small>Vert en pointillés : mot remplacé, survole pour voir l'original.</small></p>
+    <div id="pop" role="dialog" aria-label="Synonymes" hidden></div>
+  </section>
+
+  <p class="muted"><small>Dictionnaires : Lefff (LGPL-LR), thésaurus Dicollecte (LGPL 2.1+), Wiktionnaire (CC BY-SA 4.0). <a href="https://github.com/lenadotgarden/repetitions">Code et détails</a>. Les synonymes sont des propositions : relis toujours l'accord et le sens.</small></p>
+</main>
 
 <script type="module">
 import { loadDict, analyze, fix } from './src/core.mjs'
 
 const $ = (id) => document.getElementById(id)
-const out = $('out')
+const HUES = [25, 145, 255, 330, 75, 200]
 let dict
+const state = { text: '', changes: [], ignored: new Set(), groups: [], spans: [] }
+let openMark = null
 
-const el = (tag, text, cls) => {
-  const e = document.createElement(tag)
-  if (text != null) e.textContent = text
-  if (cls) e.className = cls
-  return e
+const el = (tag, text, props = {}) => Object.assign(document.createElement(tag), text == null ? {} : { textContent: text }, props)
+const win = () => Number($('win').value) || 50
+const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`
+
+// --- modifications du texte -------------------------------------------------
+// Remplace [start, end[ par `to` et décale les remplacements suivants. `changes` garde le mot d'origine.
+function apply(start, end, to, alts) {
+  const old = state.text.slice(start, end)
+  const delta = to.length - (end - start)
+  state.text = state.text.slice(0, start) + to + state.text.slice(end)
+  const prior = state.changes.find((c) => c.start === start)
+  state.changes = state.changes.filter((c) => c !== prior)
+  for (const c of state.changes) if (c.start > start) { c.start += delta; c.end += delta }
+  const from = prior?.from ?? old
+  if (from !== to) state.changes.push({ start, end: start + to.length, from, alts: prior?.alts ?? alts ?? [] })
 }
 
-// Texte avec des segments [start, end, classe] surlignés (jamais d'innerHTML : le texte vient de l'utilisateur).
-function highlighted(text, spans, cls) {
-  const box = el('div', null, 'text')
+// --- affichage ---------------------------------------------------------------
+function render(focusStart) {
+  const { repetitions } = analyze(state.text, dict, { window: win() })
+  state.groups = repetitions.filter((g) => !state.ignored.has(g.lemma))
+  const spans = []
+  state.groups.forEach((g, gi) => g.occurrences.forEach((o, k) => spans.push({ ...o, gi, k, g })))
+  const repStarts = new Set(spans.map((s) => s.start))
+  for (const c of state.changes) if (!repStarts.has(c.start)) spans.push({ start: c.start, end: c.end, word: state.text.slice(c.start, c.end), change: c })
+  spans.sort((a, b) => a.start - b.start)
+
+  const box = $('text')
+  box.replaceChildren()
   let pos = 0
-  for (const [s, e, title] of spans.sort((a, b) => a[0] - b[0])) {
-    box.append(text.slice(pos, s))
-    const m = el('mark', text.slice(s, e), cls)
-    if (title) m.title = title
+  for (const s of spans) {
+    box.append(state.text.slice(pos, s.start))
+    const m = el('mark', state.text.slice(s.start, s.end), { tabIndex: 0 })
+    m.setAttribute('role', 'button')
+    m.dataset.start = s.start
+    s.change ??= state.changes.find((c) => c.start === s.start)
+    if (s.g) {
+      m.className = 'rep'
+      m.style.setProperty('--h', HUES[s.gi % HUES.length])
+      m.setAttribute('aria-label', `${s.word}, répété, ${plural(s.g.occurrences.length, 'occurrence')}`)
+    } else {
+      m.className = 'done'
+      m.dataset.from = s.change.from
+      m.setAttribute('aria-label', `${s.word}, remplace ${s.change.from}`)
+    }
+    s.el = m
     box.append(m)
-    pos = e
+    pos = s.end
   }
-  box.append(text.slice(pos))
-  return box
+  box.append(state.text.slice(pos))
+  state.spans = spans
+
+  const n = state.groups.length
+  $('count').textContent = n ? plural(n, 'répétition') + ' à revoir' : 'Aucune répétition'
+  $('fixall').disabled = !n
+  $('undoall').hidden = !state.changes.length
+  closePop()
+  if (focusStart != null) box.querySelector(`mark[data-start="${focusStart}"]`)?.focus()
 }
 
-$('detect').onclick = () => {
-  const text = $('in').value
-  const { repetitions } = analyze(text, dict, { window: Number($('win').value) })
-  out.replaceChildren()
-  if (!repetitions.length) return void out.append(el('p', 'Aucune répétition trouvée.'))
-  out.append(el('h2', `${repetitions.length} répétition${repetitions.length > 1 ? 's' : ''}`))
-  const ul = el('ul')
-  for (const g of repetitions) {
-    const sug = [...new Set(g.occurrences.slice(1).flatMap((o) => o.suggestions))].slice(0, 6)
-    const li = el('li', `${g.lemma}${g.family ? ' (même famille)' : ''} ×${g.occurrences.length} : ${g.occurrences.map((o) => o.word).join(', ')}`)
-    if (sug.length) li.append(el('span', ` → ${sug.join(', ')}`, 'muted'))
-    ul.append(li)
-  }
-  out.append(ul, highlighted(text, repetitions.flatMap((g) => g.occurrences.map((o) => [o.start, o.end, g.lemma]))))
+// --- fenêtre d'un mot ----------------------------------------------------------
+function closePop() {
+  $('pop').hidden = true
+  $('review').classList.remove('has-pop')
+  openMark?.classList.remove('open')
+  openMark = null
+  document.querySelectorAll('mark.lit').forEach((m) => m.classList.remove('lit'))
 }
 
-$('fix').onclick = () => {
-  const text = $('in').value
-  const { text: fixed, replacements } = fix(text, dict, { window: Number($('win').value) })
-  out.replaceChildren(el('h2', `${replacements.length} mot${replacements.length > 1 ? 's' : ''} remplacé${replacements.length > 1 ? 's' : ''}`))
-  // positions dans le nouveau texte = positions d'origine décalées par les remplacements précédents
-  let shift = 0
-  const spans = replacements.sort((a, b) => a.start - b.start).map((r) => {
-    const s = r.start + shift
-    shift += r.to.length - (r.end - r.start)
-    return [s, s + r.to.length, 'était : ' + r.from]
-  })
-  const copy = el('button', 'Copier le texte corrigé')
-  copy.onclick = () => navigator.clipboard.writeText(fixed).then(() => (copy.textContent = 'Copié'))
-  out.append(copy, highlighted(fixed, spans, 'new'), el('p', 'Les mots en vert sont remplacés (survole pour voir l\'original). À relire : accords et sens ne sont pas garantis.', 'muted'))
+function openPop(m) {
+  closePop()
+  openMark = m
+  m.classList.add('open')
+  $('review').classList.add('has-pop')
+  const span = state.spans.find((s) => s.el === m)
+  const pop = $('pop')
+  pop.replaceChildren()
+
+  const head = el('header')
+  if (span.g) {
+    const total = span.g.occurrences.length
+    const jump = (d) => {
+      const target = state.spans.find((s) => s.g === span.g && s.k === (span.k + d + total) % total)
+      target.el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      openPop(target.el)
+      target.el.focus({ preventScroll: true })
+    }
+    head.append(el('strong', `${span.g.lemma}${span.g.family ? ' et mots proches' : ''} · ${span.k + 1} sur ${total}`))
+    head.append(el('button', '‹', { className: 'nav', title: 'Occurrence précédente', ariaLabel: 'Occurrence précédente', onclick: () => jump(-1) }))
+    head.append(el('button', '›', { className: 'nav', title: 'Occurrence suivante', ariaLabel: 'Occurrence suivante', onclick: () => jump(1) }))
+    // met en valeur toutes les occurrences du groupe
+    state.spans.filter((s) => s.g === span.g).forEach((s) => s.el.classList.add('lit'))
+  } else head.append(el('strong', `Remplacé, était « ${span.change.from} »`))
+  pop.append(head)
+
+  const suggestions = span.g ? span.suggestions : span.change.alts.filter((w) => w !== span.word)
+  const chips = el('div', null, { className: 'chips' })
+  for (const w of suggestions.slice(0, 8)) chips.append(el('button', w, { className: 'chip', onclick: () => { apply(span.start, span.end, w, span.suggestions); render(span.start) } }))
+  pop.append(suggestions.length ? chips : el('p', 'Pas de synonyme sûr pour cette forme.', { className: 'muted' }))
+
+  const foot = el('div', null, { className: 'foot' })
+  if (span.change) foot.append(el('button', `Remettre « ${span.change.from} »`, { onclick: () => { apply(span.start, span.end, span.change.from); render(span.start) } }))
+  if (span.g) foot.append(el('button', 'Ignorer cette répétition', { onclick: () => { state.ignored.add(span.g.lemma); render(span.start) } }))
+  pop.append(foot)
+
+  pop.hidden = false
+  const box = $('review').getBoundingClientRect()
+  const r = m.getBoundingClientRect()
+  pop.style.top = `${r.bottom - box.top + 8}px`
+  pop.style.left = `${Math.max(0, Math.min(r.left - box.left, box.width - pop.offsetWidth))}px`
 }
+
+// --- événements ----------------------------------------------------------------
+const toggle = (m) => (m === openMark ? closePop() : openPop(m))
+$('text').addEventListener('click', (e) => { const m = e.target.closest('mark'); if (m) toggle(m) })
+$('text').addEventListener('keydown', (e) => {
+  const m = e.target.closest?.('mark')
+  if (m && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(m) }
+})
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openMark) { const m = openMark; closePop(); m.focus() } })
+document.addEventListener('pointerdown', (e) => { if (openMark && !e.target.closest('#pop, mark')) closePop() })
+
+$('go').onclick = () => {
+  state.text = $('in').value
+  state.changes = []
+  state.ignored = new Set()
+  $('editor').hidden = true
+  $('review').hidden = false
+  render()
+}
+$('edit').onclick = () => {
+  $('in').value = state.text
+  $('review').hidden = true
+  $('editor').hidden = false
+  $('in').focus()
+}
+$('fixall').onclick = () => {
+  const sug = new Map(state.spans.filter((s) => s.g).map((s) => [s.start, s.suggestions]))
+  const { replacements } = fix(state.text, dict, { window: win() })
+  for (const r of replacements.sort((a, b) => b.start - a.start)) apply(r.start, r.end, r.to, sug.get(r.start))
+  render()
+  if (!replacements.length) $('count').textContent += ' · aucun remplacement sûr'
+}
+$('undoall').onclick = () => {
+  for (const c of [...state.changes].sort((a, b) => b.start - a.start)) apply(c.start, c.end, c.from)
+  render()
+}
+$('copy').onclick = () => navigator.clipboard.writeText(state.text).then(() => {
+  $('copy').textContent = 'Copié ✓'
+  setTimeout(() => ($('copy').textContent = 'Copier'), 1500)
+})
 
 try {
   const parts = await Promise.all(['wiktionnaire', 'synonymes', 'formes'].map((n) => fetch(`dict/${n}.txt`).then((r) => r.text())))
   dict = loadDict(parts.join('\n'))
-  $('detect').disabled = $('fix').disabled = false
+  $('go').disabled = false
   $('status').textContent = ''
 } catch (e) {
   $('status').textContent = 'Erreur de chargement du dictionnaire : ' + e.message
