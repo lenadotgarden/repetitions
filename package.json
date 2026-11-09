@@ -5,5 +5,5 @@
   "type": "module",
   "license": "MIT",
   "bin": { "repetitions": "src/cli.mjs" },
-  "scripts": { "test": "node --test test/" }
+  "scripts": { "test": "node --test test/*.test.mjs" }
 }
