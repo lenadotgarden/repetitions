@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Répétitions</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { max-width: 52rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  textarea { width: 100%; min-height: 14rem; box-sizing: border-box; font: inherit; padding: .6rem; }
+  button { font: inherit; padding: .5rem 1rem; margin: .5rem .5rem .5rem 0; cursor: pointer; }
+  .text { white-space: pre-wrap; border: 1px solid #8886; border-radius: .4rem; padding: .6rem; }
+  mark { background: #ffd54f; color: #000; border-radius: .2rem; padding: 0 .1rem; }
+  mark.new { background: #81c784; }
+  li { margin: .3rem 0; }
+  small, .muted { opacity: .7; }
+</style>
+</head>
+<body>
+<h1>Répétitions</h1>
+<p class="muted">Colle ton texte en markdown. Rien n'est envoyé : tout se passe dans ton navigateur.</p>
+<textarea id="in" placeholder="Ton texte..." autofocus></textarea>
+<div>
+  <button id="detect" disabled>Détecter</button>
+  <button id="fix" disabled>Corriger</button>
+  <label>Fenêtre <input id="win" type="number" min="5" max="500" value="50" style="width:4.5rem"> mots</label>
+  <span id="status" class="muted">Chargement du dictionnaire...</span>
+</div>
+<div id="out"></div>
+<p><small>Dictionnaires : Lefff (LGPL-LR), thésaurus Dicollecte (LGPL 2.1+), Wiktionnaire (CC BY-SA 4.0). <a href="https://github.com/lenadotgarden/repetitions">Code et détails</a>.</small></p>
+
+<script type="module">
+import { loadDict, analyze, fix } from './src/core.mjs'
+
+const $ = (id) => document.getElementById(id)
+const out = $('out')
+let dict
+
+const el = (tag, text, cls) => {
+  const e = document.createElement(tag)
+  if (text != null) e.textContent = text
+  if (cls) e.className = cls
+  return e
+}
+
+// Texte avec des segments [start, end, classe] surlignés (jamais d'innerHTML : le texte vient de l'utilisateur).
+function highlighted(text, spans, cls) {
+  const box = el('div', null, 'text')
+  let pos = 0
+  for (const [s, e, title] of spans.sort((a, b) => a[0] - b[0])) {
+    box.append(text.slice(pos, s))
+    const m = el('mark', text.slice(s, e), cls)
+    if (title) m.title = title
+    box.append(m)
+    pos = e
+  }
+  box.append(text.slice(pos))
+  return box
+}
+
+$('detect').onclick = () => {
+  const text = $('in').value
+  const { repetitions } = analyze(text, dict, { window: Number($('win').value) })
+  out.replaceChildren()
+  if (!repetitions.length) return void out.append(el('p', 'Aucune répétition trouvée.'))
+  out.append(el('h2', `${repetitions.length} répétition${repetitions.length > 1 ? 's' : ''}`))
+  const ul = el('ul')
+  for (const g of repetitions) {
+    const sug = [...new Set(g.occurrences.slice(1).flatMap((o) => o.suggestions))].slice(0, 6)
+    const li = el('li', `${g.lemma}${g.family ? ' (même famille)' : ''} ×${g.occurrences.length} : ${g.occurrences.map((o) => o.word).join(', ')}`)
+    if (sug.length) li.append(el('span', ` → ${sug.join(', ')}`, 'muted'))
+    ul.append(li)
+  }
+  out.append(ul, highlighted(text, repetitions.flatMap((g) => g.occurrences.map((o) => [o.start, o.end, g.lemma]))))
+}
+
+$('fix').onclick = () => {
+  const text = $('in').value
+  const { text: fixed, replacements } = fix(text, dict, { window: Number($('win').value) })
+  out.replaceChildren(el('h2', `${replacements.length} mot${replacements.length > 1 ? 's' : ''} remplacé${replacements.length > 1 ? 's' : ''}`))
+  // positions dans le nouveau texte = positions d'origine décalées par les remplacements précédents
+  let shift = 0
+  const spans = replacements.sort((a, b) => a.start - b.start).map((r) => {
+    const s = r.start + shift
+    shift += r.to.length - (r.end - r.start)
+    return [s, s + r.to.length, 'était : ' + r.from]
+  })
+  const copy = el('button', 'Copier le texte corrigé')
+  copy.onclick = () => navigator.clipboard.writeText(fixed).then(() => (copy.textContent = 'Copié'))
+  out.append(copy, highlighted(fixed, spans, 'new'), el('p', 'Les mots en vert sont remplacés (survole pour voir l\'original). À relire : accords et sens ne sont pas garantis.', 'muted'))
+}
+
+try {
+  const parts = await Promise.all(['wiktionnaire', 'synonymes', 'formes'].map((n) => fetch(`dict/${n}.txt`).then((r) => r.text())))
+  dict = loadDict(parts.join('\n'))
+  $('detect').disabled = $('fix').disabled = false
+  $('status').textContent = ''
+} catch (e) {
+  $('status').textContent = 'Erreur de chargement du dictionnaire : ' + e.message
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "repetitions",
+  "version": "0.1.0",
+  "description": "Détecteur de répétitions pour textes français, sans IA, sans serveur",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "repetitions": "src/cli.mjs" },
+  "scripts": { "test": "node --test test/" }
+}
